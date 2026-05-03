@@ -1,137 +1,180 @@
-import React, { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-
+import React, { useEffect, useState,useRef } from 'react'
+import { SiTicktick } from "react-icons/si";
+import { BrowserRouter as Router,Link,useNavigate} from 'react-router-dom'
 const Home = () => {
+    let user = JSON.parse(localStorage.getItem("user"));
+let uid = user?.studentId;
+    let [task,settask]=useState([])
+    let [finaltask,setfinaltask]=useState([])
 
-  let user = JSON.parse(localStorage.getItem("user"))
-  let uid = user?.studentId
+    useEffect(()=>{fetch("http://localhost:4000/details",{method:"GET"})
+    .then((res)=>{return res.json()})
+    .then((data)=>{settask(data)})
+},[])
+    
 
-  let [task, settask] = useState([])
-  let [finaltask, setfinaltask] = useState([])
+useEffect(() => {
+  const user = task.find((student) => student.studentId === uid);
+  setfinaltask(user ? user.tasks : []);
+}, [task]);
+    console.log(finaltask);
+    
+    const navigate = useNavigate()
+  
+let hupd=(id)=>{
+  navigate("/updatetask",{state:{tid:id,uid:uid}})
+}
 
-  const navigate = useNavigate()
 
-  // Fetch data
-  useEffect(() => {
-    fetch("http://localhost:4000/details")
-      .then((res) => res.json())
-      .then((data) => settask(data))
-  }, [])
+let handleDelete = (taskId) => {
 
-  // Filter user tasks
-  useEffect(() => {
-    const student = task.find((s) => s.studentId === uid)
-    setfinaltask(student ? student.tasks : [])
-  }, [task, uid])
+  // 1. Find the student
+  const student = task.find((s) => s.studentId === uid);
 
-  // Update navigation
-  const hupd = (id) => {
-    navigate("/updatetask", { state: { tid: id, uid: uid } })
+  if (!student) {
+    console.log("Student not found");
+    return;
   }
 
-  // Delete
-  const handleDelete = (taskId) => {
-    const student = task.find((s) => s.studentId === uid)
+  // 2. Remove the selected task
+  const updatedTasks = student.tasks.filter(
+    (t) => t.taskId !== taskId
+  );
 
-    const updatedTasks = student.tasks.filter(
-      (t) => t.taskId !== taskId
-    )
+  // 3. Update backend
+  fetch(`http://localhost:4000/details/${student.id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      tasks: updatedTasks
+    })
+  })
+  .then(() => {
+    // 4. Update UI instantly (no refresh needed)
+    setfinaltask(updatedTasks);
+  });
+};
 
-    fetch(`http://localhost:4000/details/${student.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tasks: updatedTasks })
-    }).then(() => setfinaltask(updatedTasks))
+let handlecomp = (taskId) => {
+
+  const student = task.find((s) => s.studentId === uid);
+
+  if (!student) {
+    console.log("Student not found");
+    return;
   }
 
-  // Complete
-  const handlecomp = (taskId) => {
-    const student = task.find((s) => s.studentId === uid)
+  // Update only selected task
+  const updatedTasks = student.tasks.map((t) =>
+    t.taskId === taskId
+      ? { ...t, status: "Completed" }
+      : t
+  );
 
-    const updatedTasks = student.tasks.map((t) =>
-      t.taskId === taskId ? { ...t, status: "Completed" } : t
-    )
-
-    fetch(`http://localhost:4000/details/${student.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tasks: updatedTasks })
-    }).then(() => setfinaltask(updatedTasks))
-  }
+  // Update backend
+  fetch(`http://localhost:4000/details/${student.id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      tasks: updatedTasks
+    })
+  })
+  .then(() => {
+    setfinaltask(updatedTasks);  // update UI instantly
+  });
+};
 
   return (
     <div>
+        <nav>
+                      <h1>Student Task Management</h1>
+                        <ul>
+                  
+                          <Link style={{textDecoration:"none",color:"white",fontSize:"23px"}} to="/home"  >Home</Link>
+                          <Link style={{textDecoration:"none",color:"white",fontSize:"23px"}} to={`/addtask/${uid}`}>Add Task</Link>
+                                         
+                          </ul>
+                  </nav>
+        <h1 style={{marginLeft:"20px",marginTop:"30px"}}>Tasks</h1>
+        
+      
+        <div id="tskcon">
+            {
+  finaltask.length === 0 ? (
 
-      {/* NAVBAR */}
-      <nav>
-        <h1>Student Task Management</h1>
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      height: "60vh",
+      width:"90%"
+    }}>
+      <h2 style={{fontSize:"27px"}}>No Tasks Yet 😴</h2>
+      <p style={{fontSize:"27px",marginTop:"8px"}}>Add your first task to get started</p>
 
-        <ul>
-          <Link to="/home">Home</Link>
-          <Link to={`/addtask/${uid}`}>Add Task</Link>
-        </ul>
-      </nav>
+      <button
+        style={{
+          padding: "10px 20px",
+          backgroundColor: "blue",
+          color: "white",
+          border: "none",
+          borderRadius: "8px",
+          cursor: "pointer",
+          marginTop:"15px"
+        }}
+        onClick={() => navigate(`/addtask/${uid}`)}
+      >
+        Add Task
+      </button>
+    </div>
 
-      {/* TABLE */}
-      <div id="tskcon">
+  ) : (
 
-        {
-          finaltask.length === 0 ? (
-            <div className="empty">
-              <h2>No Tasks Yet 😴</h2>
-              <p>Add your first task</p>
-              <button onClick={() => navigate(`/addtask/${uid}`)}>
-                Add Task
-              </button>
-            </div>
-          ) : (
+    finaltask.map((t) => (
+      <div
+        className="task"
+        key={t.taskId}
+        style={{
+          backgroundColor: t.status === "Completed" ? "lightgreen" : ""
+        }}
+      >
+        <h1>{t.taskName}</h1>
+        <p>{t.taskDescription}</p>
+        <h4>Status: {t.status}</h4>
 
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Status</th>
-                 
-                  <th>Actions</th>
-                </tr>
-              </thead>
+        <button
+          style={{ backgroundColor: "blue" }}
+          onClick={() => hupd(t.taskId)}
+        >
+          Update
+        </button>
 
-              <tbody>
-                {
-                  finaltask.map((t) => (
-                    <tr key={t.taskId}>
-                      <td>{t.taskId}</td>
-                      <td>{t.taskName}</td>
-                      <td>{t.taskDescription}</td>
+        <button
+          style={{ backgroundColor: "green", marginLeft: "4%" }}
+          onClick={() => handlecomp(t.taskId)}
+        >
+          complete
+        </button>
 
-                      <td>
-                        <span className={t.status === "Completed" ? "completed" : "pending"}>
-                          {t.status}
-                        </span>
-                      </td>
-
-                     
-
-                      <td><center>
-
-                        <button className="update" onClick={() => hupd(t.taskId)}>Update</button>
-                        <button className="complete" onClick={() => handlecomp(t.taskId)}>Complete</button>
-                        <button className="delete" onClick={() => handleDelete(t.taskId)}>Delete</button>
-                      </center>
-                      </td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-
-          )
-        }
+        <button
+          style={{ backgroundColor: "red", width: "100%" }}
+          onClick={() => handleDelete(t.taskId)}
+        >
+          delete
+        </button>
 
       </div>
+    ))
 
+  )
+}
+            </div>
+        
     </div>
   )
 }

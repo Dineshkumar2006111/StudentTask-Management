@@ -1,138 +1,126 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect,useState } from 'react'
 import { MdBrowserUpdated } from "react-icons/md";
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter as Router,Link,useLocation,useNavigate} from 'react-router-dom'
+
+
+
+
 
 const Update = () => {
 
-  const { state } = useLocation();
+
+  const location = useLocation();
   const navigate = useNavigate();
 
-  const id = state?.tid;
-  const uid = state?.uid;
+  let id = location.state?.tid;
+  let uid = location.state?.uid;
 
-  const [task, setTask] = useState([]);
-  const [form, setForm] = useState({
-    name: "",
-    desc: "",
-    status: ""
-  });
+  let [updtaskname, setupdtaskname] = useState("")
+  let [updtaskdesc, setupdtaskdesc] = useState("")
+  let [updtaskstatus, setupdtaskstatus] = useState("")
 
-  // 🔹 Fetch data
+  let [task, settask] = useState([])
+  let [finaltask, setfinaltask] = useState([])
+
+  // ✅ Fetch data
   useEffect(() => {
     fetch("http://localhost:4000/details")
-      .then(res => res.json())
-      .then(data => setTask(data))
-      .catch(() => alert("Error fetching data"))
-  }, []);
+      .then((res) => res.json())
+      .then((data) => settask(data))
+  }, [])
 
-  // 🔹 Fill form automatically
+  // ✅ Get student tasks
   useEffect(() => {
-    if (!task.length || !uid || !id) return;
+    if (!task.length || !uid) return;
 
-    const student = task.find(s => s.studentId === uid);
-    const currentTask = student?.tasks?.find(t => t.taskId === id);
+    const user = task.find(
+      (student) =>
+        student.studentId?.toString().trim().toLowerCase() ===
+        uid.toString().trim().toLowerCase()
+    );
 
-    if (currentTask) {
-      setForm({
-        name: currentTask.taskName,
-        desc: currentTask.taskDescription,
-        status: currentTask.status
-      });
+    setfinaltask(user?.tasks || []);
+  }, [task, uid])
+
+  // ✅ Fill form
+  useEffect(() => {
+    if (!finaltask.length || !id) return;
+
+    const result = finaltask.find(
+      (t) => t.taskId?.toString().trim() === id.toString().trim()
+    );
+
+    if (result) {
+      setupdtaskname(result.taskName || "")
+      setupdtaskdesc(result.taskDescription || "")
+      setupdtaskstatus(result.status || "")
     }
-  }, [task, uid, id]);
+  }, [finaltask, id])
 
-  // 🔹 Handle input
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  // 🔹 Update task
+  // ✅ Update
   const handleUpdate = () => {
 
-    if (!form.name || !form.desc || !form.status) {
-      alert("All fields are required!");
-      return;
-    }
-
-    const student = task.find(s => s.studentId === uid);
+    const student = task.find((s) => s.studentId === uid);
 
     if (!student) {
-      alert("User not found!");
+      console.log("Student not found");
       return;
     }
 
-    const updatedTasks = student.tasks.map(t =>
+    const updatedTasks = student.tasks.map((t) =>
       t.taskId === id
         ? {
             ...t,
-            taskName: form.name,
-            taskDescription: form.desc,
-            status: form.status
+            taskName: updtaskname,
+            taskDescription: updtaskdesc,
+            status: updtaskstatus
           }
         : t
     );
 
     fetch(`http://localhost:4000/details/${student.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tasks: updatedTasks })
-    })
-      .then(() => {
-        alert("Task Updated Successfully ✅");
-        navigate("/home");
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        tasks: updatedTasks
       })
-      .catch(() => alert("Update failed ❌"));
+    })
+    .then(() => {
+      navigate("/home");
+    });
   };
+
+
+
+
+
+
+
+
 
   return (
     <div>
-
-      {/* NAVBAR */}
       <nav>
-        <h1>Student Task Management</h1>
-        <ul>
-          <Link to="/home">Home</Link>
-          <Link to={`/addtask/${uid}`}>Add Task</Link>
-        </ul>
-      </nav>
+                    <h1>Student Task Management</h1>
+                      <ul>
+                
+                        <Link style={{textDecoration:"none",color:"white",fontSize:"23px"}} to="/home">Home</Link>
+                        <Link style={{textDecoration:"none",color:"white",fontSize:"23px"}} to="/addtask">Add Task</Link>
+                                       
+                        </ul>
+                </nav>
+      <h1 id="ut">Update Tasks</h1>
+      <center>
+      <div id="uform">
+          <h1>Update form</h1>
+          <input type="text" id="taskname" placeholder='Task Name' value={updtaskname} onChange={(e)=>{setupdtaskname(e.target.value)}} autoComplete='off'/>
+          <textarea name="description" id="description" placeholder='Task description' value={updtaskdesc} onChange={(e)=>{setupdtaskdesc(e.target.value)}}></textarea>
+          <input type="text" id="status" value={updtaskstatus} onChange={(e)=>{setupdtaskstatus(e.target.value)}} placeholder='Status' autoComplete='off'/>
+          <button onClick={handleUpdate}>Update <MdBrowserUpdated size={25}/></button>
 
-      <h1 id="ut">Update Task</h1>
-
-      <div className="form-container">
-
-        <h2>Update Form</h2>
-
-        <input
-          type="text"
-          name="name"
-          placeholder="Task Name"
-          value={form.name}
-          onChange={handleChange}
-        />
-
-        <textarea
-          name="desc"
-          placeholder="Task Description"
-          value={form.desc}
-          onChange={handleChange}
-        />
-
-        <select
-          name="status"
-          value={form.status}
-          onChange={handleChange}
-        >
-          <option value="">Select Status</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Completed">Completed</option>
-        </select>
-
-        <button onClick={handleUpdate}>
-          Update <MdBrowserUpdated size={20} />
-        </button>
-
-      </div>
-
+      </div></center>
     </div>
   )
 }
